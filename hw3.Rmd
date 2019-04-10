@@ -1,0 +1,321 @@
+---
+title: "hw3"
+author: "Jiajian Huang"
+date: "4/6/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(ISLR)
+library(glmnet)
+library(fields)
+library(rgl)
+library(readbitmap)
+library(imager)
+library(readr)
+library(pander); library(mice); library(Epi)
+library(gridExtra); library(vcd); library(Hmisc)
+library(mosaic); library(forcats); library(tidyverse)
+library(OpenImageR)
+library(class)
+```
+
+# Q8  CHP 9
+
+## a.
+
+```{r}
+library(caret)
+set.seed(2019)
+train = sample(dim(OJ)[1], 800)
+OJ.train = OJ[train, ]
+OJ.test = OJ[-train, ]
+```
+
+## b.
+
+```{r}
+library(e1071)
+svm.linear <- svm(Purchase ~ ., data = OJ.train, kernel = "linear", cost = 0.01)
+summary(svm.linear)
+```
+
+From the output of R’s summary function we can see that 441 observations are used as support vector. Moreover, the support vectors are almost equally split among the classes.
+
+## c.
+
+```{r}
+train.pred <- predict(svm.linear, OJ.train)
+table(OJ.train$Purchase, train.pred)
+```
+
+```{r}
+(80 + 55)/ ( 447+80+55+218)
+```
+
+The training error rate is 0.1688.
+
+```{r}
+test.pred <- predict(svm.linear, OJ.test)
+table(OJ.test$Purchase, test.pred)
+```
+
+```{r}
+(26+16)/(135+16+26+93)
+```
+
+The testing error rate is 0.1556.
+
+## d.
+
+```{r}
+set.seed(2019)
+tune.out = tune(svm, Purchase ~ ., data = OJ.train, kernel = "linear", ranges = list(cost = 10^seq(-2, 
+    1, by = 0.25)))
+summary(tune.out)
+```
+
+Tuning shows that optimal cost is 3.162278.
+
+## e.
+
+```{r}
+svm.linear <- svm(Purchase ~ ., kernel = "linear", data = OJ.train, cost = tune.out$best.parameter$cost)
+train.pred <- predict(svm.linear, OJ.train)
+table(OJ.train$Purchase, train.pred)
+```
+
+```{r}
+(75+61)/(441 + 61+ 75+223)
+```
+
+The training error rate is now 17%
+
+```{r}
+test.pred <- predict(svm.linear, OJ.test)
+table(OJ.test$Purchase, test.pred)
+```
+
+```{r}
+(25+16)/(135+25+16+94)
+```
+
+The test error rate is 15.18%.
+
+## f.
+
+```{r}
+svm.radial <- svm(Purchase ~ ., kernel = "radial", data = OJ.train)
+summary(svm.radial)
+```
+
+```{r}
+train.pred <- predict(svm.radial, OJ.train)
+table(OJ.train$Purchase, train.pred)
+```
+
+```{r}
+(31+18)/(133+18+31+88)
+```
+
+
+```{r}
+test.pred <- predict(svm.radial, OJ.test)
+table(OJ.test$Purchase, test.pred)
+```
+
+
+```{r}
+(80+37)/(465+37+80+218)
+```
+
+The classifier has a training error of 14.63% and a test error of 18.15%.
+
+```{r}
+set.seed(2019)
+tune.out <- tune(svm, Purchase ~ ., data = OJ.train, kernel = "radial", ranges = list(cost = 10^seq(-2, 
+    1, by = 0.25)))
+summary(tune.out)
+```
+
+Tuning shows that optimal cost is 0.17.
+
+## g.
+
+```{r}
+svm.poly <- svm(Purchase ~ ., kernel = "polynomial", data = OJ.train, degree = 2)
+summary(svm.poly)
+```
+
+```{r}
+train.pred <- predict(svm.poly, OJ.train)
+table(OJ.train$Purchase, train.pred)
+```
+
+```{r}
+(109+32)/(470+32+109+189)
+```
+
+```{r}
+test.pred <- predict(svm.poly, OJ.test)
+table(OJ.test$Purchase, test.pred)
+```
+
+```{r}
+(41+17)/(134+17+41+78)
+```
+
+With polynomial kernel degree=2, the classifier has a training error of 17.63% and a test error of 21.48%.
+
+```{r}
+set.seed(2019)
+tune.out <- tune(svm, Purchase ~ ., data = OJ.train, kernel = "polynomial", degree = 2, ranges = list(cost = 10^seq(-2, 
+    1, by = 0.25)))
+summary(tune.out)
+```
+
+Tuning shows that optimal cost is 0.17.
+
+```{r}
+svm.poly <- svm(Purchase ~ ., kernel = "polynomial", degree = 2, data = OJ.train, cost = tune.out$best.parameter$cost)
+summary(svm.poly)
+```
+
+```{r}
+train.pred <- predict(svm.poly, OJ.train)
+table(OJ.train$Purchase, train.pred)
+```
+
+```{r}
+(79+36)/(466+36+79+219)
+```
+
+```{r}
+test.pred <- predict(svm.poly, OJ.test)
+table(OJ.test$Purchase, test.pred)
+```
+
+```{r}
+(33+20)/(131+20+33+86)
+```
+
+The classifier has a training error of 14.38% and a test error of 19.63%.
+
+## h.
+
+The default gamma approach provides the best results on this data.
+
+# Dataset Khan
+
+## random forests
+
+```{r}
+data("Khan")
+```
+
+```{r}
+library(randomForest)
+```
+
+```{r}
+dim(Khan$xtrain)
+```
+
+```{r}
+dim(Khan$xtest)
+```
+
+```{r}
+table(Khan$ytrain)
+```
+
+```{r}
+table(Khan$ytest)
+```
+
+
+```{r}
+khan_train = data.frame(x = Khan$xtrain, y = as.factor(Khan$ytrain))
+khan_test = data.frame(x = Khan$xtest, y = as.factor(Khan$ytest))
+```
+
+```{r}
+random = train(y ~ ., data = khan_train, method = "rf", trControl = trainControl(method = "cv"))
+```
+
+
+```{r}
+confusionMatrix(khan_train$y, predict(random, khan_train))
+```
+
+```{r}
+confusionMatrix(khan_test$y, predict(random, khan_test))
+```
+
+## tree boosting
+
+```{r}
+library(xgboost)
+library(gbm)
+```
+
+```{r}
+set.seed(2019)
+boost.khan = gbm(y ~., data = khan_train, distribution = "gaussian", n.trees = 5000)
+boost.khan
+```
+
+```{r}
+par(mfcol = c(2, 4), mar = c(2, 2, 1, 1), las = 1)
+plot(khan_train$y, predict(boost.khan, n.trees = 5000))
+plot(khan_train$y, predict(boost.khan, n.trees = 5000) - khan_train$y, ylim = c(-20, 15));abline(h = 0)
+```
+
+```{r}
+plot(khan_test$y, predict(boost.khan, khan_test, n.tree = 500))
+plot(khan_test$y, predict(boost.khan, khan_test, n.trees = 500) - khan_test$y, ylim = c(-20, 15));abline(h = 0)
+```
+
+```{r}
+set.seed(2019)
+boost.han = gbm(y ~., data = khan_train, distribution = "gaussian", n.trees = 5000, interaction.depth = 4)
+```
+
+```{r}
+yhat.bt1.nn = predict(boost.khan, khan_test, n.trees = seq(500, 5000, 500))
+dim(yhat.bt1.nn)
+```
+
+```{r}
+a = apply(yhat.bt1.nn, 2, function(x) mean(Khan$ytest - x)^2)
+round(a, 5)
+```
+
+```{r}
+boost.x = xgboost(data = Khan$xtrain, label = Khan$ytrain, max_depth = 4, eta = 1, nround = 5, objective = "reg:linear")
+```
+
+```{r}
+all.equal(as.numeric(predict(boost.x, Khan$xtest) > 0.5), Khan$ytest)
+```
+
+```{r}
+boost.y = xgboost(data = Khan$xtrain, label = Khan$ytrain, max_depth = 1, eta = 0.1, nround = 50, objective = "reg:linear")
+```
+
+```{r}
+importance_matrix = xgb.importance(model = boost.x)
+xgb.plot.importance(importance_matrix = importance_matrix)
+```
+
+```{r}
+xgb.plot.importance(importance_matrix = xgb.importance(model =boost.y))
+```
+
+
+
+
+
+
+
+
